@@ -1,15 +1,18 @@
 import 'dart:convert';
-import 'dart:math';
-
+import 'dart:ffi';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter/widgets.dart';
+
 import 'package:nextggendise_authenticator/const.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:nextggendise_authenticator/db.dart';
 import 'package:nextggendise_authenticator/helper.dart';
 import 'package:nextggendise_authenticator/scan.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/services.dart';
+
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -22,6 +25,7 @@ class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
+
 
   postdata() async {
     var url = Uri.parse(dwebsite + apilogin);
@@ -46,13 +50,155 @@ class _LoginState extends State<Login> {
 
   bool _passwordVisible = false;
   bool _progress = false;
+  static final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
+  Map<String, dynamic> _deviceData = <String, dynamic>{};
+
+  Map<String, dynamic> readAndroidBuildData(AndroidDeviceInfo build) {
+    return <String, dynamic>{
+      'version.securityPatch': build.version.securityPatch,
+      'version.sdkInt': build.version.sdkInt,
+      'version.release': build.version.release,
+      'version.previewSdkInt': build.version.previewSdkInt,
+      'version.incremental': build.version.incremental,
+      'version.codename': build.version.codename,
+      'version.baseOS': build.version.baseOS,
+      'board': build.board,
+      'bootloader': build.bootloader,
+      'brand': build.brand,
+      'device': build.device,
+      'display': build.display,
+      'fingerprint': build.fingerprint,
+      'hardware': build.hardware,
+      'host': build.host,
+      'id': build.id,
+      'manufacturer': build.manufacturer,
+      'model': build.model,
+      'product': build.product,
+      'supported32BitAbis': build.supported32BitAbis,
+      'supported64BitAbis': build.supported64BitAbis,
+      'supportedAbis': build.supportedAbis,
+      'tags': build.tags,
+      'type': build.type,
+      'isPhysicalDevice': build.isPhysicalDevice,
+      'systemFeatures': build.systemFeatures,
+      'serialNumber': build.serialNumber,
+      'isLowRamDevice': build.isLowRamDevice,
+    };
+  }
+
+  Map<String, dynamic> readIosDeviceInfo(IosDeviceInfo data) {
+    return <String, dynamic>{
+      'name': data.name,
+      'systemName': data.systemName,
+      'systemVersion': data.systemVersion,
+      'model': data.model,
+      'localizedModel': data.localizedModel,
+      'identifierForVendor': data.identifierForVendor,
+      'isPhysicalDevice': data.isPhysicalDevice,
+      'utsname.sysname:': data.utsname.sysname,
+      'utsname.nodename:': data.utsname.nodename,
+      'utsname.release:': data.utsname.release,
+      'utsname.version:': data.utsname.version,
+      'utsname.machine:': data.utsname.machine,
+    };
+  }
+
+@override
+  void initState() {
+    initPlatformState();
+    super.initState();
+  }
+
+  Future<void> initPlatformState() async {
+      var deviceData = <String, dynamic>{};
+      try {
+        if (Platform.isAndroid) {
+          debugPrint("Android");
+          deviceData =
+              readAndroidBuildData(await deviceInfoPlugin.androidInfo);
+        }
+        if (Platform.isIOS) {
+          debugPrint("IOS");
+          deviceData = readIosDeviceInfo(await deviceInfoPlugin.iosInfo);
+        }
+      }
+      on PlatformException {
+        deviceData = <String, dynamic>{
+          'Error:': 'Failed to get platform version.'
+        };
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _deviceData = deviceData;
+       
+      });
+    }
+
 
   @override
   Widget build(BuildContext context) {
     final bool keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      // appBar: AppBar(title: const Text("Nextgen Dise Authenticator",style: heading ),centerTitle: true, backgroundColor: Colors.blue[900],),
+      appBar: AppBar(backgroundColor: Colors.blue[900],actions: [
+        IconButton(onPressed: (){
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return Dialog(
+                backgroundColor: white,
+                
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      Text("Device Information",textAlign:TextAlign.center,style: GoogleFonts.raleway(fontSize: 20),),
+                      Container(
+                        height: MediaQuery.of(context).size.height*4/5,
+                        child: ListView(
+                                children: _deviceData.keys.map(
+                                      (String property) {
+                                    return Row(
+                                      children: <Widget>[
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          child: Text(
+                                            property,
+                                            
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            child: Text(
+                                              '${_deviceData[property]}',
+                                              maxLines: 10,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ).toList(),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+
+
+              ); // Show custom dialog
+            },
+          );
+        }, icon: Icon(Icons.info,color: white,))
+      ],),
       body: GestureDetector(
         onTap: () {
           // Close the keyboard when tapped outside of text field
@@ -75,16 +221,19 @@ class _LoginState extends State<Login> {
             ),
             child: Column(
               children: [
+
+
                 keyboardOpen
                     ? const SizedBox(
                         height: 0,
                       )
-                    : Expanded(
+                    :
+                Expanded(
                         flex: 2,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            makelogo(40,50),
+                            makelogo(40.0,50.0),
                             const SizedBox(
                               height: 10,
                             ),

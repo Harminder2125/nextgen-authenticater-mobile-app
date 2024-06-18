@@ -12,6 +12,7 @@ import 'package:nextggendise_authenticator/helper.dart';
 import 'package:nextggendise_authenticator/login.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:local_auth/error_codes.dart' as auth_error;
 
 class Scanqr extends StatefulWidget {
   const Scanqr({super.key});
@@ -21,7 +22,6 @@ class Scanqr extends StatefulWidget {
 }
 
 class _ScanqrState extends State<Scanqr> {
-
   signoutUser() async {
     await TokenHelper().deleteToken().then((value) {
       if (value['code'] == 200) {
@@ -44,7 +44,8 @@ class _ScanqrState extends State<Scanqr> {
     super.reassemble();
     if (Platform.isAndroid) {
       controller!.pauseCamera();
-    } else if (Platform.isIOS) {
+    }
+    if (Platform.isIOS) {
       controller!.resumeCamera();
     }
   }
@@ -53,7 +54,7 @@ class _ScanqrState extends State<Scanqr> {
     // For this example we check how width or tall the device is and change the scanArea and overlay accordingly.
     var scanArea = (MediaQuery.of(context).size.width < 400 ||
             MediaQuery.of(context).size.height < 400)
-        ? 150.0
+        ? 200.0
         : 300.0;
     // To ensure the Scanner view is properly sizes after rotation
     // we need to listen for Flutter SizeChanged notification and update controller
@@ -61,10 +62,10 @@ class _ScanqrState extends State<Scanqr> {
       key: qrKey,
       onQRViewCreated: _onQRViewCreated,
       overlay: QrScannerOverlayShape(
-          borderColor: Colors.red,
+          borderColor: white,
           borderRadius: 10,
-          borderLength: 30,
-          borderWidth: 10,
+          borderLength: 25,
+          borderWidth: 5,
           cutOutSize: scanArea),
       onPermissionSet: (ctrl, p) => _onPermissionSet(context, ctrl, p),
     );
@@ -77,7 +78,8 @@ class _ScanqrState extends State<Scanqr> {
     controller.scannedDataStream.listen((scanData) {
       setState(() {
         result = scanData;
-        status=null;
+        callAuth();
+        status = null;
       });
     });
   }
@@ -112,7 +114,6 @@ class _ScanqrState extends State<Scanqr> {
   void initState() {
     // TODO: implement initState
     super.initState();
-
     getpermission();
   }
 
@@ -121,27 +122,44 @@ class _ScanqrState extends State<Scanqr> {
   }
 
   final LocalAuthentication auth = LocalAuthentication();
-  callAuth() async{
-try {
+  callAuth() async {
+    try {
+      // final List<BiometricType> availableBiometrics =
+      // await auth.getAvailableBiometrics();
+      // print(availableBiometrics);
+      // if (availableBiometrics.isNotEmpty) {
+      // Some biometrics are enrolled.
       final bool didAuthenticate = await auth.authenticate(
-          localizedReason: 'Please authenticate to show account balance',
-          options: const AuthenticationOptions(useErrorDialogs: false));
-      // ···
+          localizedReason: 'Please authenticate to Login',
+          options: const AuthenticationOptions(
+              biometricOnly: false,
+              useErrorDialogs: false,
+              stickyAuth: true,
+              sensitiveTransaction: true));
+
+      if (didAuthenticate) {
+        showtoast("Success Auth", success);
+      } else {
+        showtoast("Failed Auth", danger);
+      }
+      // }
+      // else {
+      //   showtoast("No Authentication Type Available", danger);
+      // }
     } on PlatformException catch (e) {
       if (e.code == auth_error.notEnrolled) {
-        // Add handling of no hardware here.
+        showtoast("No Authentication Type Available", danger);
       } else if (e.code == auth_error.lockedOut ||
           e.code == auth_error.permanentlyLockedOut) {
-        // ...
+        showtoast("Locked", danger);
       } else {
-        // ...
+        showtoast("Something went wrong: ${e.message}", danger);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-   
     return Scaffold(
       appBar: createapp(),
       floatingActionButton: FloatingActionButton(
@@ -156,7 +174,7 @@ try {
           color: white,
         ),
       ),
-      bottomNavigationBar: status!=null?createBottomMenus():null,
+      bottomNavigationBar: status != null ? createBottomMenus() : null,
       body: Center(
         child: Container(
           width: double.infinity,
@@ -175,9 +193,9 @@ try {
           // ),
           child: Column(
             children: <Widget>[
-              status != null ? Expanded(
-                  flex: 4,
-                  child: _buildQrView(context)) : Text(""),
+              status != null
+                  ? Expanded(flex: 4, child: _buildQrView(context))
+                  : Text(""),
               Expanded(
                 flex: 1,
                 child: Column(
@@ -185,10 +203,11 @@ try {
                   children: <Widget>[
                     if (result != null)
                       Text(
-                          'Barcode Type: ${describeEnum(result!.format)}   Data: ${result!.code}',style: TextStyle(fontSize: 13.0),)
+                        'Barcode Type: ${describeEnum(result!.format)}   Data: ${result!.code}',
+                        style: TextStyle(fontSize: 13.0),
+                      )
                     else
                       const Text('Scan a code'),
-                   
                   ],
                 ),
               )
@@ -200,10 +219,9 @@ try {
   }
 
   BottomNavigationBar createBottomMenus() {
-    
     return BottomNavigationBar(
-      selectedItemColor: Colors.white, 
-      unselectedItemColor: Colors.white, 
+      selectedItemColor: Colors.white,
+      unselectedItemColor: Colors.white,
       backgroundColor: blue900,
       selectedLabelStyle: GoogleFonts.raleway(fontSize: 13),
       unselectedLabelStyle: GoogleFonts.raleway(fontSize: 13),
@@ -211,20 +229,24 @@ try {
         BottomNavigationBarItem(
             icon: IconButton(
               onPressed: () async {
-                await controller?.toggleFlash();
-                setState(() {});
+                try {
+                  await controller?.toggleFlash();
+                  setState(() {});
+                } catch (e) {
+                  print(e);
+                }
               },
               icon: FutureBuilder(
                 future: controller?.getFlashStatus(),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     if (snapshot.data == true) {
-                      return Icon(Icons.flash_off,color:white);
+                      return Icon(Icons.flash_off, color: white);
                     } else {
-                      return  Icon(Icons.flash_on,color:white);
+                      return Icon(Icons.flash_on, color: white);
                     }
                   }
-                  return  Icon(Icons.flash_on,color:white);
+                  return Icon(Icons.flash_on, color: white);
                 },
               ),
             ),
@@ -240,12 +262,21 @@ try {
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     if (snapshot.data == CameraFacing.back) {
-                      return Icon(Icons.camera_front,color: white,);
+                      return Icon(
+                        Icons.camera_front,
+                        color: white,
+                      );
                     } else {
-                      return Icon(Icons.photo_camera_back,color: white,);
+                      return Icon(
+                        Icons.photo_camera_back,
+                        color: white,
+                      );
                     }
                   }
-                  return Icon(Icons.photo_camera_back,color: white,);
+                  return Icon(
+                    Icons.photo_camera_back,
+                    color: white,
+                  );
                 },
               ),
             ),
