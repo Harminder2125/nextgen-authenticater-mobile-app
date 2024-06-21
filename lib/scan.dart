@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:lottie/lottie.dart';
 import 'package:nextggendise_authenticator/const.dart';
 import 'package:nextggendise_authenticator/db.dart';
 import 'package:nextggendise_authenticator/helper.dart';
@@ -13,6 +15,7 @@ import 'package:nextggendise_authenticator/login.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:local_auth/error_codes.dart' as auth_error;
+import 'package:http/http.dart' as http;
 
 class Scanqr extends StatefulWidget {
   const Scanqr({super.key});
@@ -21,7 +24,7 @@ class Scanqr extends StatefulWidget {
   State<Scanqr> createState() => _ScanqrState();
 }
 
-class _ScanqrState extends State<Scanqr> {
+class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
   signoutUser() async {
     await TokenHelper().deleteToken().then((value) {
       if (value['code'] == 200) {
@@ -34,10 +37,24 @@ class _ScanqrState extends State<Scanqr> {
     });
   }
 
+  signoutwebUser() async {
+    await postdeletedata().then((v) async {
+      if (v['code'] == 200) {
+        showtoast(v['message'], success);
+      } else {
+        showtoast(v['message'], danger);
+      }
+    });
+  }
+
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   Barcode? result;
   QRViewController? controller;
   PermissionStatus? status;
+  bool? didAuthenticate = null;
+  late final AnimationController _controller;
+  int loggedin = -1;
+  bool stopscan = false;
 
   @override
   void reassemble() {
@@ -78,7 +95,9 @@ class _ScanqrState extends State<Scanqr> {
     controller.scannedDataStream.listen((scanData) {
       setState(() {
         result = scanData;
-        callAuth();
+        if (result!.code != null) {
+          callAuth();
+        }
         status = null;
       });
     });
@@ -96,6 +115,7 @@ class _ScanqrState extends State<Scanqr> {
   @override
   void dispose() {
     controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -114,14 +134,77 @@ class _ScanqrState extends State<Scanqr> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    getpermission();
+    _controller = AnimationController(vsync: this);
   }
 
   getpermission() async {
     status = await _getCameraPermission();
+    setState(() {
+      result = null;
+      didAuthenticate = false;
+      _controller.reset();
+    });
   }
 
   final LocalAuthentication auth = LocalAuthentication();
+
+  postdeletedata() async {
+    var url = Uri.parse(dwebsite + apidelete);
+    String t = await TokenHelper().readToken();
+
+    try {
+      var response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $t', // Assuming Bearer token authorization
+          'Content-Type': 'application/json', // Adjust content type as needed
+        },
+      );
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+        return data;
+      } else if (response.statusCode == 401) {
+        var data = jsonDecode(response.body);
+        return data;
+      } else {
+        return {
+          'message': 'Server under Maintenance',
+          'code': response.statusCode
+        };
+      }
+    } catch (e) {
+      return {'message': 'Something went wrong => $e', 'code': 999};
+    }
+  }
+
+  postdata() async {
+    var url = Uri.parse(dwebsite + apivalidate);
+    String t = await TokenHelper().readToken();
+
+    try {
+      var response = await http.post(url,
+          headers: {
+            'Authorization': 'Bearer $t', // Assuming Bearer token authorization
+            'Content-Type': 'application/json', // Adjust content type as needed
+          },
+          body: jsonEncode({'ssid': result!.code}));
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+        return data;
+      } else if (response.statusCode == 401) {
+        var data = jsonDecode(response.body);
+        return data;
+      } else {
+        return {
+          'message': 'Server under Maintenance',
+          'code': response.statusCode
+        };
+      }
+    } catch (e) {
+      return {'message': 'Something went wrong => $e', 'code': 999};
+    }
+  }
+
   callAuth() async {
     try {
       // final List<BiometricType> availableBiometrics =
@@ -129,7 +212,7 @@ class _ScanqrState extends State<Scanqr> {
       // print(availableBiometrics);
       // if (availableBiometrics.isNotEmpty) {
       // Some biometrics are enrolled.
-      final bool didAuthenticate = await auth.authenticate(
+      didAuthenticate = await auth.authenticate(
           localizedReason: 'Please authenticate to Login',
           options: const AuthenticationOptions(
               biometricOnly: false,
@@ -137,8 +220,23 @@ class _ScanqrState extends State<Scanqr> {
               stickyAuth: true,
               sensitiveTransaction: true));
 
-      if (didAuthenticate) {
-        showtoast("Success Auth", success);
+      if (didAuthenticate!) {
+        var x = await postdata();
+        if (x['code'] == 200) {
+          showtoast(x['message'], success);
+          setState(() {
+            loggedin = 1;
+          });
+        } else {
+          loggedin = 0;
+          showtoast(x['message'], danger);
+        }
+
+        Future.delayed(const Duration(seconds: 2), () {
+          setState(() {
+            loggedin = -1;
+          });
+        });
       } else {
         showtoast("Failed Auth", danger);
       }
@@ -162,15 +260,86 @@ class _ScanqrState extends State<Scanqr> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: createapp(),
+      drawer: Drawer(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  DrawerHeader(
+                    decoration: BoxDecoration(color: Colors.blue[900]),
+                    child: Column(
+                      children: [
+                        makelogo(30.0, 30.0),
+                        SizedBox(height: 10,),
+                        Text("NIC Shield",style: GoogleFonts.raleway(fontSize: 20,color: white,fontWeight: FontWeight.bold),)
+                      ],
+                    ),
+                  ),
+                  ListTile(
+                    title: const Text("Sign Out from Mobile"),
+                    onTap: signoutUser,
+                    leading: Icon(Icons.power_settings_new_outlined),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.all(16.0),
+              color: Colors.grey[200],
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: const Text(
+                  "Version 1.0.0",
+                  style: TextStyle(fontSize: 12.0, color: Colors.black),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // Drawer(
+      //   child: ListView(
+      //     padding: EdgeInsets.zero,
+      //     children: [
+      //       DrawerHeader(
+      //         decoration: BoxDecoration(),
+      //         child: Container(
+      //           height: 200,
+      //           width: double.infinity,
+      //           color: blue900,
+      //           child: Center(child:  makelogo(15.0, 20.0),),
+      //         ),
+      //       ),
+      //       ListTile(
+      //         title: const Text("SignOut from Mobile"),
+      //         onTap: signoutUser,
+      //         leading: Icon(Icons.power_settings_new_outlined),
+      //       )
+      //     ],
+      //   ),
+      // ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: blue900,
         onPressed: () {
+          loggedin = -1;
+
           if (status != null) {
             setState(() {});
+          } else {
+            getpermission();
+          }
+          stopscan = !stopscan;
+
+          if (stopscan) {
+            status = null;
+            stopscan=false;
           }
         },
         child: Icon(
-          Icons.qr_code_2,
+          (!stopscan && status==null) ? Icons.qr_code_2 :Icons.slow_motion_video_sharp,
           color: white,
         ),
       ),
@@ -199,15 +368,56 @@ class _ScanqrState extends State<Scanqr> {
               Expanded(
                 flex: 1,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
                     if (result != null)
-                      Text(
-                        'Barcode Type: ${describeEnum(result!.format)}   Data: ${result!.code}',
-                        style: TextStyle(fontSize: 13.0),
-                      )
+                      if (didAuthenticate == true)
+                        if (loggedin == 1)
+                          SizedBox(
+                            height: 200,
+                            child: Lottie.asset(
+                              "assets/images/loginsuccess.json",
+                              key: UniqueKey(),
+                              repeat: false,
+                              fit: BoxFit.cover,
+                              controller: _controller,
+                              onLoaded: (composition) {
+                                // Configure the AnimationController with the duration of the
+                                // Lottie file and start the animation.
+                                _controller
+                                  ..duration = composition.duration
+                                  ..forward();
+                              },
+                            ),
+                          )
+                        else if (loggedin == 0)
+                          Lottie.asset(
+                            "assets/images/loginfailed.json",
+                            key: UniqueKey(),
+                            repeat: false,
+                            fit: BoxFit.cover,
+                            // controller: _controller,
+                            // onLoaded: (composition) {
+                            //   // Configure the AnimationController with the duration of the
+                            //   // Lottie file and start the animation.
+                            //   _controller
+                            //     ..duration = composition.duration
+                            //     ..forward();
+                            // },
+                          )
+                        else
+                          const SizedBox(
+                            height: 0,
+                          )
+                      else
+                        const CircularProgressIndicator()
+                    //  Text(
+                    //   'Barcode Type: ${describeEnum(result!.format)}   Data: ${result!.code}',
+                    //   style: TextStyle(fontSize: 13.0),
+                    // )
                     else
-                      const Text('Scan a code'),
+                      const SizedBox(height: 0),
+                    if (loggedin == -1) const Text('Scan New code'),
                   ],
                 ),
               )
@@ -302,11 +512,21 @@ class _ScanqrState extends State<Scanqr> {
         ],
       ),
       centerTitle: true,
+      leading: Builder(
+          builder: (BuildContext context) {
+            return IconButton(
+              icon: Icon(Icons.menu,color: white,), // Hamburger icon
+              onPressed: () {
+                Scaffold.of(context).openDrawer(); // Example action, could be different in your app
+              },
+            );
+          },
+        ),
       backgroundColor: Colors.blue[900],
       actions: [
         IconButton(
-          onPressed: () => signoutUser(),
-          icon: const Icon(Icons.logout),
+          onPressed: () => signoutwebUser(),
+          icon: const Icon(Icons.desktop_access_disabled_sharp),
           color: white,
         )
       ],

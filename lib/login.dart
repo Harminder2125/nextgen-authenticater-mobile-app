@@ -25,25 +25,36 @@ class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
+  Map<String, dynamic> _deviceData = <String, dynamic>{};
 
 
   postdata() async {
     var url = Uri.parse(dwebsite + apilogin);
-    try {
-      var response = await http.post(url, body: {
+    var _bodystr= {
         'userid': _usernameController.text,
-        'password': _passwordController.text
-      });
+        'password': _passwordController.text,
+        'devicename':_deviceData['manufacturer']+_deviceData['brand'],
+        'deviceOS':Platform.isAndroid?"Android":Platform.isIOS?"IOS":"Unknow",
+        'deviceModel':_deviceData['model']??'',
+        'deviceID': _usernameController.text+_deviceData['manufacturer']+_deviceData['brand']+_deviceData['model']+_deviceData['hardware'],
+        'deviceJson':jsonEncode(_deviceData)
+      };
+
+    try {
+     
+      var response = await http.post(url,body:_bodystr);
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
         return data;
       } else {
         return {
-          'message': 'Server under Maintainance',
+
+          'message': 'Server under Maintenance : ${_deviceData.toString()}',
           'code': response.statusCode
         };
       }
     } catch (e) {
+      debugPrint(e.toString());
       return {'message': 'Something went wrong => $e', 'code': 999};
     }
   }
@@ -51,7 +62,7 @@ class _LoginState extends State<Login> {
   bool _passwordVisible = false;
   bool _progress = false;
   static final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
-  Map<String, dynamic> _deviceData = <String, dynamic>{};
+  
 
   Map<String, dynamic> readAndroidBuildData(AndroidDeviceInfo build) {
     return <String, dynamic>{
@@ -132,7 +143,6 @@ class _LoginState extends State<Login> {
 
       setState(() {
         _deviceData = deviceData;
-       
       });
     }
 
@@ -211,7 +221,7 @@ class _LoginState extends State<Login> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: keyboardOpen
-                    ? [white!, white!]
+                    ? [white, white]
                     : [blue900!, blue700!], // Your gradient colors
                 begin: Alignment
                     .topCenter, // Alignment for the start of the gradient
@@ -324,7 +334,7 @@ class _LoginState extends State<Login> {
                                     ? Container(
                                         width: 20,
                                         height: 20,
-                                        child: CircularProgressIndicator())
+                                        child: const CircularProgressIndicator())
                                     : ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: blue700,

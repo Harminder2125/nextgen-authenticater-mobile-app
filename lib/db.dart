@@ -8,8 +8,8 @@ class TokenHelper {
     return {'message': 'Device Authenticated', 'code': 200};
   }
 
-  Future<String?> readToken() async {
-    String? token = await _storage.read(key: 'token');
+  Future<String> readToken() async {
+    String token = await _storage.read(key: 'token')??"";
     return token;
   }
 
