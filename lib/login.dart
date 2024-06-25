@@ -28,13 +28,13 @@ class _LoginState extends State<Login> {
   Map<String, dynamic> _deviceData = <String, dynamic>{};
 
 
-  postdata() async {
+  logindata() async {
     var url = Uri.parse(dwebsite + apilogin);
     var _bodystr= {
         'userid': _usernameController.text,
         'password': _passwordController.text,
         'devicename':_deviceData['manufacturer']+_deviceData['brand'],
-        'deviceOS':Platform.isAndroid?"Android":Platform.isIOS?"IOS":"Unknow",
+        'deviceOS':Platform.isAndroid?"ANDROID":Platform.isIOS?"IOS":"UNKNOW",
         'deviceModel':_deviceData['model']??'',
         'deviceID': _usernameController.text+_deviceData['manufacturer']+_deviceData['brand']+_deviceData['model']+_deviceData['hardware'],
         'deviceJson':jsonEncode(_deviceData)
@@ -345,7 +345,7 @@ class _LoginState extends State<Login> {
                                           if (_formKey.currentState!
                                               .validate()) {
                                             _progress = true;
-                                            postdata().then((value) {
+                                            logindata().then((value) {
                                               setState(() {
                                                 _progress = false;
                                               });
@@ -355,8 +355,14 @@ class _LoginState extends State<Login> {
                                               } else {
                                                 showtoast(
                                                     value['message'], success);
-                                                TokenHelper()
-                                                    .saveToken(value['token']);
+                                                     String data=jsonEncode(
+                                                     {'deviceID':   _usernameController.text+_deviceData['manufacturer']+_deviceData['brand']+_deviceData['model']+_deviceData['hardware'],
+                                                      'token':value['token'],
+                                                      'deviceOS':Platform.isAndroid?"Android":Platform.isIOS?"IOS":"Unknow",
+                                                      'physicalDevice':_deviceData['isPhysicalDevice']
+                                                     });
+                                                    
+                                                TokenHelper().saveToken(data);
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(

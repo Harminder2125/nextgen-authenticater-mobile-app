@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nextggendise_authenticator/const.dart';
+import 'package:nextggendise_authenticator/db.dart';
 import 'package:nextggendise_authenticator/login.dart';
 import 'package:nextggendise_authenticator/scan.dart';
 
@@ -17,7 +18,7 @@ class Splash extends StatelessWidget {
       // Retrieve token
       String? token;
 
-      token = await storage.read(key: 'token');
+       token = await TokenHelper().readToken();//storage.read(key: 'token');
       await Future.delayed(Duration(seconds:5));
 
       if (token != null) {

@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:ffi';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:lottie/lottie.dart';
@@ -150,16 +153,25 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
 
   postdeletedata() async {
     var url = Uri.parse(dwebsite + apidelete);
-    String t = await TokenHelper().readToken();
+
+    String? data = await TokenHelper().readToken();
+    var temp = jsonDecode(data!);
+    String t = temp["token"];
 
     try {
-      var response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $t', // Assuming Bearer token authorization
-          'Content-Type': 'application/json', // Adjust content type as needed
-        },
-      );
+      DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
+
+      var bodystr = jsonEncode({
+        'deviceID': temp["deviceID"].toString(),
+        'deviceOS': temp["deviceOS"].toString(),
+        'physicalDevice': temp["physicalDevice"].toString()
+      });
+      var response = await http.post(url,
+          headers: {
+            'Authorization': 'Bearer $t', // Assuming Bearer token authorization
+            'Content-Type': 'application/json', // Adjust content type as needed
+          },
+          body: bodystr);
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
         return data;
@@ -177,17 +189,51 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
     }
   }
 
-  postdata() async {
+   void _showConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmation',style: GoogleFonts.raleway(),),
+          content: Text('Are you sure you want logout from all Active Web Sessions ?',style: GoogleFonts.raleway(),),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+               signoutwebUser();
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+              child: Text('Yes',style: GoogleFonts.raleway(color: success,fontWeight: FontWeight.bold),),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+              child: Text('No',style: GoogleFonts.raleway(color: danger,fontWeight: FontWeight.bold),),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  postAuthdata(double width) async {
     var url = Uri.parse(dwebsite + apivalidate);
-    String t = await TokenHelper().readToken();
-
+    String? data = await TokenHelper().readToken();
+    var temp = jsonDecode(data!);
+    String t = temp["token"];
     try {
       var response = await http.post(url,
           headers: {
             'Authorization': 'Bearer $t', // Assuming Bearer token authorization
             'Content-Type': 'application/json', // Adjust content type as needed
           },
-          body: jsonEncode({'ssid': result!.code}));
+          body: jsonEncode({
+            'deviceID':temp["deviceID"].toString(),
+            'deviceOS':temp["deviceOS"].toString().toUpperCase(),
+            'physicalDevice':temp["physicalDevice"].toString(),
+            'ssid': result!.code.toString(),
+            'deviceWidth': width.ceil().toString()
+            }));
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
         return data;
@@ -221,7 +267,7 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
               sensitiveTransaction: true));
 
       if (didAuthenticate!) {
-        var x = await postdata();
+        var x = await postAuthdata(MediaQuery.of(context).size.width);
         if (x['code'] == 200) {
           showtoast(x['message'], success);
           setState(() {
@@ -272,8 +318,16 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
                     child: Column(
                       children: [
                         makelogo(30.0, 30.0),
-                        SizedBox(height: 10,),
-                        Text("NIC Shield",style: GoogleFonts.raleway(fontSize: 20,color: white,fontWeight: FontWeight.bold),)
+                        SizedBox(
+                          height: 10,
+                        ),
+                        Text(
+                          "NIC Shield",
+                          style: GoogleFonts.raleway(
+                              fontSize: 20,
+                              color: white,
+                              fontWeight: FontWeight.bold),
+                        )
                       ],
                     ),
                   ),
@@ -335,11 +389,13 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
 
           if (stopscan) {
             status = null;
-            stopscan=false;
+            stopscan = false;
           }
         },
         child: Icon(
-          (!stopscan && status==null) ? Icons.qr_code_2 :Icons.slow_motion_video_sharp,
+          (!stopscan && status == null)
+              ? Icons.qr_code_2
+              : Icons.slow_motion_video_sharp,
           color: white,
         ),
       ),
@@ -513,19 +569,23 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
       ),
       centerTitle: true,
       leading: Builder(
-          builder: (BuildContext context) {
-            return IconButton(
-              icon: Icon(Icons.menu,color: white,), // Hamburger icon
-              onPressed: () {
-                Scaffold.of(context).openDrawer(); // Example action, could be different in your app
-              },
-            );
-          },
-        ),
+        builder: (BuildContext context) {
+          return IconButton(
+            icon: Icon(
+              Icons.menu,
+              color: white,
+            ), // Hamburger icon
+            onPressed: () {
+              Scaffold.of(context)
+                  .openDrawer(); // Example action, could be different in your app
+            },
+          );
+        },
+      ),
       backgroundColor: Colors.blue[900],
       actions: [
         IconButton(
-          onPressed: () => signoutwebUser(),
+          onPressed: () => _showConfirmationDialog(context),
           icon: const Icon(Icons.desktop_access_disabled_sharp),
           color: white,
         )
