@@ -6,6 +6,7 @@ import 'package:nextggendise_authenticator/const.dart';
 import 'package:nextggendise_authenticator/db.dart';
 import 'package:nextggendise_authenticator/login.dart';
 import 'package:nextggendise_authenticator/scan.dart';
+import 'package:nextggendise_authenticator/dashboard.dart';
 
 class Splash extends StatelessWidget {
   const Splash({super.key});
@@ -16,15 +17,15 @@ class Splash extends StatelessWidget {
       final storage = new FlutterSecureStorage();
 
       // Retrieve token
-      String? token;
+      int token;
 
-       token = await TokenHelper().readToken();//storage.read(key: 'token');
+       token = await TokenHelper().getTokenCount();//storage.read(key: 'token');
       await Future.delayed(Duration(seconds:5));
 
-      if (token != null) {
+      if (token>0) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => Scanqr()),
+          MaterialPageRoute(builder: (context) => Dashboard()),
         );
       } else {
         Navigator.pushReplacement(

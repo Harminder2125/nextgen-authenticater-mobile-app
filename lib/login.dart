@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:nextggendise_authenticator/const.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:nextggendise_authenticator/dashboard.dart';
 import 'package:nextggendise_authenticator/db.dart';
 import 'package:nextggendise_authenticator/helper.dart';
 import 'package:nextggendise_authenticator/scan.dart';
@@ -29,7 +30,7 @@ class _LoginState extends State<Login> {
 
 
   logindata() async {
-    var url = Uri.parse(dwebsite + apilogin);
+    var url = Uri.parse(website + apilogin);
     var _bodystr= {
         'userid': _usernameController.text,
         'password': _passwordController.text,
@@ -54,7 +55,7 @@ class _LoginState extends State<Login> {
         };
       }
     } catch (e) {
-      debugPrint(e.toString());
+      
       return {'message': 'Something went wrong => $e', 'code': 999};
     }
   }
@@ -124,12 +125,12 @@ class _LoginState extends State<Login> {
       var deviceData = <String, dynamic>{};
       try {
         if (Platform.isAndroid) {
-          debugPrint("Android");
+          
           deviceData =
               readAndroidBuildData(await deviceInfoPlugin.androidInfo);
         }
         if (Platform.isIOS) {
-          debugPrint("IOS");
+          
           deviceData = readIosDeviceInfo(await deviceInfoPlugin.iosInfo);
         }
       }
@@ -359,15 +360,15 @@ class _LoginState extends State<Login> {
                                                      {'deviceID':   _usernameController.text+_deviceData['manufacturer']+_deviceData['brand']+_deviceData['model']+_deviceData['hardware'],
                                                       'token':value['token'],
                                                       'deviceOS':Platform.isAndroid?"Android":Platform.isIOS?"IOS":"Unknow",
-                                                      'physicalDevice':_deviceData['isPhysicalDevice']
+                                                      'physicalDevice':_deviceData['isPhysicalDevice'],
                                                      });
                                                     
-                                                TokenHelper().saveToken(data);
+                                                TokenHelper().saveToken(value['website'],data);
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(
                                                       builder: (context) =>
-                                                          Scanqr()),
+                                                          Dashboard()),
                                                 );
                                               }
                                             });

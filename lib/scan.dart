@@ -1,13 +1,9 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'dart:ffi';
 import 'dart:io';
-
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:lottie/lottie.dart';
@@ -21,15 +17,21 @@ import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:http/http.dart' as http;
 
 class Scanqr extends StatefulWidget {
-  const Scanqr({super.key});
+
+  final String token;
+  const Scanqr(this.token, {super.key});
 
   @override
   State<Scanqr> createState() => _ScanqrState();
 }
 
 class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
+
+
+
   signoutUser() async {
-    await TokenHelper().deleteToken().then((value) {
+    
+    await TokenHelper().deleteToken(widget.token).then((value) {
       if (value['code'] == 200) {
         showtoast(value['message'], success);
         Navigator.pushReplacement(
@@ -152,9 +154,9 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
   final LocalAuthentication auth = LocalAuthentication();
 
   postdeletedata() async {
-    var url = Uri.parse(dwebsite + apidelete);
+    var url = Uri.parse(website + apidelete);
 
-    String? data = await TokenHelper().readToken();
+    String? data = await TokenHelper().readToken(widget.token);
     var temp = jsonDecode(data!);
     String t = temp["token"];
 
@@ -217,8 +219,8 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
   }
   
   postAuthdata(double width) async {
-    var url = Uri.parse(dwebsite + apivalidate);
-    String? data = await TokenHelper().readToken();
+    var url = Uri.parse(website + apivalidate);
+    String? data = await TokenHelper().readToken(widget.token);
     var temp = jsonDecode(data!);
     String t = temp["token"];
     try {
@@ -255,7 +257,7 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
     try {
       // final List<BiometricType> availableBiometrics =
       // await auth.getAvailableBiometrics();
-      // print(availableBiometrics);
+      
       // if (availableBiometrics.isNotEmpty) {
       // Some biometrics are enrolled.
       didAuthenticate = await auth.authenticate(
@@ -499,7 +501,7 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
                   await controller?.toggleFlash();
                   setState(() {});
                 } catch (e) {
-                  print(e);
+                
                 }
               },
               icon: FutureBuilder(
