@@ -6,8 +6,12 @@ class TokenHelper {
   final _storage = const FlutterSecureStorage();
 
   saveToken(String id, String data) async {
-    await _storage.write(key: id, value: data);
-    return {'message': 'Device Authenticated', 'code': 200};
+    try {
+      await _storage.write(key: id, value: data);
+      return {'message': 'Device Authenticated', 'code': 200};
+    } catch (e) {
+      return {'message': 'Token Not saved', 'code': 0};
+    }
   }
 
   Future<String?> readToken(String id) async {
@@ -16,8 +20,12 @@ class TokenHelper {
   }
 
   Future<dynamic> deleteToken(String id) async {
-    await _storage.delete(key: id);
-    return {'message': 'Token De-Registered', 'code': 200};
+    try {
+      await _storage.delete(key: id);
+      return {'message': 'Token De-Registered', 'code': 200};
+    } catch (e) {
+      return {'message': 'Token Not deleted', 'code': 0};
+    }
   }
 
   Future<int> getTokenCount() async {

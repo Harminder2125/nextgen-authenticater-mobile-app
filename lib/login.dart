@@ -115,7 +115,7 @@ class _LoginState extends State<Login> {
     };
   }
 
-@override
+  @override
   void initState() {
     initPlatformState();
     super.initState();
@@ -146,7 +146,6 @@ class _LoginState extends State<Login> {
         _deviceData = deviceData;
       });
     }
-
 
   @override
   Widget build(BuildContext context) {
@@ -361,9 +360,12 @@ class _LoginState extends State<Login> {
                                                       'token':value['token'],
                                                       'deviceOS':Platform.isAndroid?"Android":Platform.isIOS?"IOS":"Unknow",
                                                       'physicalDevice':_deviceData['isPhysicalDevice'],
+                                                      'state':value['state'],
+                                                      'userid':_usernameController.text,
+                                                      'website':value['website'],
                                                      });
                                                     
-                                                TokenHelper().saveToken(value['website'],data);
+                                                TokenHelper().saveToken(_usernameController.text,data);
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(
@@ -410,8 +412,6 @@ class _LoginState extends State<Login> {
       ),
     );
   }
-
-  
 
   Widget makeCircle(double size, double x, double y) {
     return Positioned(

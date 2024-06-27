@@ -154,11 +154,14 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
   final LocalAuthentication auth = LocalAuthentication();
 
   postdeletedata() async {
-    var url = Uri.parse(website + apidelete);
+
+   
 
     String? data = await TokenHelper().readToken(widget.token);
     var temp = jsonDecode(data!);
     String t = temp["token"];
+    String tokenurl=temp["siteurl"];
+    var url = Uri.parse(tokenurl + apidelete);
 
     try {
       DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
@@ -219,10 +222,13 @@ class _ScanqrState extends State<Scanqr> with TickerProviderStateMixin {
   }
   
   postAuthdata(double width) async {
-    var url = Uri.parse(website + apivalidate);
+    
     String? data = await TokenHelper().readToken(widget.token);
     var temp = jsonDecode(data!);
     String t = temp["token"];
+    String tokenurl=temp["siteurl"];
+    var url = Uri.parse(tokenurl + apivalidate);
+
     try {
       var response = await http.post(url,
           headers: {
