@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -14,7 +13,6 @@ import 'package:nextggendise_authenticator/scan.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/services.dart';
 
-
 class Login extends StatefulWidget {
   const Login({super.key});
 
@@ -24,38 +22,44 @@ class Login extends StatefulWidget {
 
 class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
+  TextEditingController _urlController = TextEditingController();
   TextEditingController _usernameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
   Map<String, dynamic> _deviceData = <String, dynamic>{};
 
-
   logindata() async {
-    var url = Uri.parse(website + apilogin);
-    var _bodystr= {
-        'userid': _usernameController.text,
-        'password': _passwordController.text,
-        'devicename':_deviceData['manufacturer']+_deviceData['brand'],
-        'deviceOS':Platform.isAndroid?"ANDROID":Platform.isIOS?"IOS":"UNKNOW",
-        'deviceModel':_deviceData['model']??'',
-        'deviceID': _usernameController.text+_deviceData['manufacturer']+_deviceData['brand']+_deviceData['model']+_deviceData['hardware'],
-        'deviceJson':jsonEncode(_deviceData)
-      };
+    var url = Uri.parse(_urlController.text + apilogin);
+    var _bodystr = {
+      'userid': _usernameController.text,
+      'password': _passwordController.text,
+      'devicename': _deviceData['manufacturer'] + _deviceData['brand'],
+      'deviceOS': Platform.isAndroid
+          ? "ANDROID"
+          : Platform.isIOS
+              ? "IOS"
+              : "UNKNOW",
+      'deviceModel': _deviceData['model'] ?? '',
+      'deviceID': _usernameController.text +
+          _deviceData['manufacturer'] +
+          _deviceData['brand'] +
+          _deviceData['model'] +
+          _deviceData['hardware'],
+      'deviceJson': jsonEncode(_deviceData)
+    };
 
     try {
-     
-      var response = await http.post(url,body:_bodystr);
+      var response = await http.post(url, body: _bodystr);
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
         return data;
       } else {
+        print("Testing data : "+response.body);
         return {
-
-          'message': 'Server under Maintenance : ${_deviceData.toString()}',
+          'message': 'Server under Maintenance : ${response.body}',
           'code': response.statusCode
         };
       }
     } catch (e) {
-      
       return {'message': 'Something went wrong => $e', 'code': 999};
     }
   }
@@ -63,7 +67,6 @@ class _LoginState extends State<Login> {
   bool _passwordVisible = false;
   bool _progress = false;
   static final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
-  
 
   Map<String, dynamic> readAndroidBuildData(AndroidDeviceInfo build) {
     return <String, dynamic>{
@@ -92,9 +95,9 @@ class _LoginState extends State<Login> {
       'tags': build.tags,
       'type': build.type,
       'isPhysicalDevice': build.isPhysicalDevice,
-      'systemFeatures': build.systemFeatures,
-      'serialNumber': build.serialNumber,
-      'isLowRamDevice': build.isLowRamDevice,
+      // 'systemFeatures': build.systemFeatures,
+      // 'serialNumber': build.serialNumber,
+      // 'isLowRamDevice': build.isLowRamDevice,
     };
   }
 
@@ -122,70 +125,72 @@ class _LoginState extends State<Login> {
   }
 
   Future<void> initPlatformState() async {
-      var deviceData = <String, dynamic>{};
-      try {
-        if (Platform.isAndroid) {
-          
-          deviceData =
-              readAndroidBuildData(await deviceInfoPlugin.androidInfo);
-        }
-        if (Platform.isIOS) {
-          
-          deviceData = readIosDeviceInfo(await deviceInfoPlugin.iosInfo);
-        }
+    var deviceData = <String, dynamic>{};
+    try {
+      if (Platform.isAndroid) {
+        deviceData = readAndroidBuildData(await deviceInfoPlugin.androidInfo);
       }
-      on PlatformException {
-        deviceData = <String, dynamic>{
-          'Error:': 'Failed to get platform version.'
-        };
+      if (Platform.isIOS) {
+        deviceData = readIosDeviceInfo(await deviceInfoPlugin.iosInfo);
       }
-
-      if (!mounted) return;
-
-      setState(() {
-        _deviceData = deviceData;
-      });
+    } on PlatformException {
+      deviceData = <String, dynamic>{
+        'Error:': 'Failed to get platform version.'
+      };
     }
+
+    if (!mounted) return;
+
+    setState(() {
+      _deviceData = deviceData;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final bool keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.blue[900],actions: [
-        IconButton(onPressed: (){
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return Dialog(
-                backgroundColor: white,
-                
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: [
-                      Text("Device Information",textAlign:TextAlign.center,style: GoogleFonts.raleway(fontSize: 20),),
-                      Container(
-                        height: MediaQuery.of(context).size.height*4/5,
-                        child: ListView(
+      appBar: AppBar(
+        backgroundColor: Colors.blue[900],
+        actions: [
+          IconButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return Dialog(
+                      backgroundColor: white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              "Device Information",
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.raleway(fontSize: 20),
+                            ),
+                            Container(
+                              height:
+                                  MediaQuery.of(context).size.height * 4 / 5,
+                              child: ListView(
                                 children: _deviceData.keys.map(
-                                      (String property) {
+                                  (String property) {
                                     return Row(
                                       children: <Widget>[
                                         Container(
                                           padding: const EdgeInsets.all(10),
                                           child: Text(
                                             property,
-                                            
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              
                                             ),
                                           ),
                                         ),
                                         Expanded(
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 10),
                                             child: Text(
                                               '${_deviceData[property]}',
                                               maxLines: 10,
@@ -198,17 +203,20 @@ class _LoginState extends State<Login> {
                                   },
                                 ).toList(),
                               ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-
-
-              ); // Show custom dialog
-            },
-          );
-        }, icon: Icon(Icons.info,color: white,))
-      ],),
+                    ); // Show custom dialog
+                  },
+                );
+              },
+              icon: Icon(
+                Icons.info,
+                color: white,
+              ))
+        ],
+      ),
       body: GestureDetector(
         onTap: () {
           // Close the keyboard when tapped outside of text field
@@ -231,19 +239,16 @@ class _LoginState extends State<Login> {
             ),
             child: Column(
               children: [
-
-
                 keyboardOpen
                     ? const SizedBox(
                         height: 0,
                       )
-                    :
-                Expanded(
-                        flex: 2,
+                    : Expanded(
+                        flex: 1,
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
-                            makelogo(40.0,50.0),
+                            makelogo(40.0, 50.0),
                             const SizedBox(
                               height: 10,
                             ),
@@ -262,27 +267,37 @@ class _LoginState extends State<Login> {
                     color: white,
                     child: Column(
                       children: [
-                        Transform.translate(
-                          offset: const Offset(0, -50),
-                          child: SizedBox(
-                            height: 60,
-                            width: double.infinity,
-                            child: Stack(
-                              children: List.generate(
-                                50,
-                                (index) => makeCircle(70, -50 + index * 45,
-                                    index % 1.5 == 0 ? 20 : 30),
+                        keyboardOpen
+                            ? SizedBox(
+                                height: 0,
+                              )
+                            : Transform.translate(
+                                offset: const Offset(0, -50),
+                                child: SizedBox(
+                                  height: 60,
+                                  width: double.infinity,
+                                  child: Stack(
+                                    children: List.generate(
+                                      50,
+                                      (index) => makeCircle(
+                                          70,
+                                          -50 + index * 45,
+                                          index % 1.5 == 0 ? 20 : 30),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          "Login Securely",
-                          style: GoogleFonts.raleway(
-                              color: blue700,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                        ),
+                        keyboardOpen
+                            ? SizedBox(
+                                height: 0,
+                              )
+                            : Text(
+                                "Login Securely",
+                                style: GoogleFonts.raleway(
+                                    color: blue700,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold),
+                              ),
                         Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Form(
@@ -290,6 +305,25 @@ class _LoginState extends State<Login> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
+                                TextFormField(
+                                  controller: _urlController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'URL',
+                                  ),
+                                  validator: (value) {
+                                    if (value!.isEmpty) {
+                                      return 'Please enter site url';
+                                    }
+                                    // Regular expression to match a URL starting with http:// or https://
+                                    if ((!RegExp(r'^(https?://(?:\w+\.)?\w+\.\w+|(?:https?://)?(?:\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)$').hasMatch(value))) {
+                                      return 'Enter a valid URL with http:// or https:// or IP address';
+                                    }
+                                  
+
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 20.0),
                                 TextFormField(
                                   controller: _usernameController,
                                   decoration: const InputDecoration(
@@ -302,7 +336,7 @@ class _LoginState extends State<Login> {
                                     return null;
                                   },
                                 ),
-                                const SizedBox(height: 30.0),
+                                const SizedBox(height: 20.0),
                                 TextFormField(
                                   controller: _passwordController,
                                   decoration: InputDecoration(
@@ -334,7 +368,8 @@ class _LoginState extends State<Login> {
                                     ? Container(
                                         width: 20,
                                         height: 20,
-                                        child: const CircularProgressIndicator())
+                                        child:
+                                            const CircularProgressIndicator())
                                     : ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: blue700,
@@ -355,17 +390,36 @@ class _LoginState extends State<Login> {
                                               } else {
                                                 showtoast(
                                                     value['message'], success);
-                                                     String data=jsonEncode(
-                                                     {'deviceID':   _usernameController.text+_deviceData['manufacturer']+_deviceData['brand']+_deviceData['model']+_deviceData['hardware'],
-                                                      'token':value['token'],
-                                                      'deviceOS':Platform.isAndroid?"Android":Platform.isIOS?"IOS":"Unknow",
-                                                      'physicalDevice':_deviceData['isPhysicalDevice'],
-                                                      'state':value['state'],
-                                                      'userid':_usernameController.text,
-                                                      'website':value['website'],
-                                                     });
-                                                    
-                                                TokenHelper().saveToken(_usernameController.text,data);
+                                                String data = jsonEncode({
+                                                  'deviceID':
+                                                      _usernameController.text +
+                                                          _deviceData[
+                                                              'manufacturer'] +
+                                                          _deviceData['brand'] +
+                                                          _deviceData['model'] +
+                                                          _deviceData[
+                                                              'hardware'],
+                                                  'token': value['token'],
+                                                  'deviceOS': Platform.isAndroid
+                                                      ? "Android"
+                                                      : Platform.isIOS
+                                                          ? "IOS"
+                                                          : "Unknow",
+                                                  'physicalDevice': _deviceData[
+                                                      'isPhysicalDevice'],
+                                                  'state': value['state'],
+                                                  'userid':
+                                                      _usernameController.text,
+                                                  'website': value['website'],
+                                                  'state': value['state'],
+                                                  'userid':
+                                                      _usernameController.text,
+                                                  'siteurl': _urlController.text
+                                                });
+
+                                                TokenHelper().saveToken(
+                                                    _usernameController.text,
+                                                    data);
                                                 Navigator.pushReplacement(
                                                   context,
                                                   MaterialPageRoute(

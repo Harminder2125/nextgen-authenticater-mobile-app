@@ -211,7 +211,6 @@ class _DashboardState extends State<Dashboard> {
                 return makecard(context, tokens, index); // Using tokendata here
               },
             );
-            
           }
         },
       ),
@@ -235,7 +234,10 @@ class _DashboardState extends State<Dashboard> {
               color: danger,
             ),
             onPressed: () => _showConfirmationDialog(context, tokens[index])),
-        title: Text(tokens[index],style: GoogleFonts.raleway(fontWeight: FontWeight.bold),),
+        title: Text(
+          tokens[index],
+          style: GoogleFonts.raleway(fontWeight: FontWeight.bold),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -333,6 +335,7 @@ class _DashboardState extends State<Dashboard> {
         var data = jsonDecode(response.body);
         return data;
       } else {
+        
         return {
           'message': 'Server under Maintenance : ${_deviceData.toString()}',
           'code': response.statusCode
@@ -355,12 +358,19 @@ class _DashboardState extends State<Dashboard> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             TextFormField(
-              
               controller: _urlController,
-              decoration: InputDecoration(labelText: 'URL',hintText: "http://xyz.com"),
+              decoration:
+                  InputDecoration(labelText: 'URL', hintText: "http://xyz.com"),
               validator: (value) {
+
                 if (value!.isEmpty) {
-                  return 'Please enter URL';
+                  return 'Please enter site url';
+                }
+                // Regular expression to match a URL starting with http:// or https://
+                if ((!RegExp(
+                        r'^(https?://(?:\w+\.)?\w+\.\w+|(?:https?://)?(?:\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)$')
+                    .hasMatch(value))) {
+                  return 'Enter a valid URL with http:// or https:// or IP address';
                 }
                 return null;
               },
